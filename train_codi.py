@@ -107,8 +107,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)  # Stage-1 SFT dir
     ap.add_argument("--output_dir", required=True)
+    ap.add_argument("--sources", nargs="+", default=["cruxeval"])
+    ap.add_argument("--cache_dir", default=None)  # load offline tokenized examples from precompute.py
     ap.add_argument("--n_samples", type=int, default=-1)
     ap.add_argument("--max_seq_len", type=int, default=4096)
+    ap.add_argument("--max_frames", type=int, default=-1)
     ap.add_argument("--latent_steps", type=int, default=1)
     ap.add_argument("--epochs", type=float, default=10.0)
     ap.add_argument("--lr", type=float, default=1e-5)
@@ -130,7 +133,8 @@ def main():
                       latent_steps=args.latent_steps, a=args.alpha, b=args.beta, g=args.gamma,
                       kd_all_layers=args.kd_all_layers)
 
-    ds = build_codi_dataset(tok, n_samples=args.n_samples, max_seq_len=args.max_seq_len, split="train")
+    ds = build_codi_dataset(tok, sources=args.sources, cache_dir=args.cache_dir,
+                            n_samples=args.n_samples, max_seq_len=args.max_seq_len, max_frames=args.max_frames, split="train")
     print(f"{len(ds)} codi examples, latent_steps={args.latent_steps}")
 
     targs = TrainingArguments(

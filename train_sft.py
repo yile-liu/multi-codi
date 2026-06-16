@@ -39,12 +39,15 @@ def main():
     ap.add_argument("--output_dir", required=True)
     ap.add_argument("--n_samples", type=int, default=-1)
     ap.add_argument("--max_seq_len", type=int, default=4096)
+    ap.add_argument("--max_frames", type=int, default=-1)
     ap.add_argument("--epochs", type=float, default=3.0)
     ap.add_argument("--lr", type=float, default=1e-5)
     ap.add_argument("--batch_size", type=int, default=4)
     ap.add_argument("--grad_accum", type=int, default=4)
     ap.add_argument("--max_steps", type=int, default=-1)  # >0 for smoke
     ap.add_argument("--split", default="train")
+    ap.add_argument("--sources", nargs="+", default=["cruxeval"])
+    ap.add_argument("--cache_dir", default=None)  # load offline tokenized examples from precompute.py
     args = ap.parse_args()
 
     tok = AutoTokenizer.from_pretrained(args.model, use_fast=True)
@@ -55,7 +58,8 @@ def main():
     n_added = add_trace_tokens(tok)
     resize_and_init(model, tok, n_added)
 
-    ds = build_dataset(tok, n_samples=args.n_samples, max_seq_len=args.max_seq_len, split=args.split)
+    ds = build_dataset(tok, sources=args.sources, cache_dir=args.cache_dir,
+                       n_samples=args.n_samples, max_seq_len=args.max_seq_len, max_frames=args.max_frames, split=args.split)
     print(f"{len(ds)} trace examples")
 
     targs = TrainingArguments(

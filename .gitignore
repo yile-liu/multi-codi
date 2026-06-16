@@ -4,4 +4,7 @@ __pycache__/
 model_weights/
 /tmp/
 sft_trace_*.log
+precompute_*.log
 results_*.json
+data/*/data/
+data/cache/

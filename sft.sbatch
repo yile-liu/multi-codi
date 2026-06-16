@@ -11,10 +11,24 @@
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTHONHASHSEED=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
+CACHE_DIR=data/cache/sft-train-qwen25-coder-15b
+if [ ! -d "$CACHE_DIR" ]; then
+  python precompute.py \
+    --model model_weights/qwen2.5-coder-1.5b \
+    --mode sft \
+    --sources cruxeval mbpp humaneval pyx \
+    --split train \
+    --max_seq_len 4096 \
+    --out "$CACHE_DIR" \
+    --workers "${SLURM_CPUS_ON_NODE:-8}"
+fi
+
 torchrun --nproc_per_node=4 --master_port=$((20000 + RANDOM % 10000)) train_sft.py \
   --model model_weights/qwen2.5-coder-1.5b \
   --output_dir model_weights/sft-coder-1.5b \
   --split train \
+  --sources cruxeval mbpp humaneval pyx \
+  --cache_dir "$CACHE_DIR" \
   --max_seq_len 4096 \
   --epochs 10 \
   --lr 2e-5 \

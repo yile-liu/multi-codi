@@ -41,6 +41,10 @@ _FILENAME = "<cwm_trace>"
 _ENTRY = "main"
 
 
+class _FramesExceeded(Exception):
+    """Abort tracing once the frame cap is hit (loop-heavy programs)."""
+
+
 def make_trace_context(code: str, input_str: str) -> str:
     """Source context for trace prediction (matches cruxeval.prompts)."""
     return f"\n{code}\ndef main():  # << START_OF_TRACE\n    return f({input_str})\n"
@@ -61,7 +65,8 @@ def render_value(value: Any) -> str:
 
 
 class _GroundTruthTracer:
-    def __init__(self, code: str, input_str: str) -> None:
+    def __init__(self, code: str, input_str: str, max_frames: int = -1) -> None:
+        self.max_frames = max_frames
         self.context = make_trace_context(code, input_str)
         # Register the context source so frame line numbers resolve to lines.
         src_lines = self.context.splitlines(keepends=True)
@@ -101,6 +106,9 @@ class _GroundTruthTracer:
         return current
 
     def _trace(self, frame: FrameType, event: str, arg: Any):  # noqa: ANN001
+        # Abort early on loop-heavy programs before they blow up memory/time.
+        if self.max_frames > 0 and len(self.frames) >= self.max_frames:
+            raise _FramesExceeded
         # Only follow execution at or below the entry point's scope.
         if self._entry_frame_id is None:
             if event == "call" and frame.f_code.co_name == _ENTRY:
@@ -158,6 +166,8 @@ class _GroundTruthTracer:
         sys.settrace(self._trace)
         try:
             main()
+        except _FramesExceeded:
+            self.error = "frames_exceeded"
         except Exception as e:  # noqa: BLE001 - record but don't crash eval
             self.error = f"{type(e).__name__}: {e}"
         finally:
@@ -181,7 +191,7 @@ def drop_entry_call(frames: list[TraceFrame]) -> list[TraceFrame]:
 
 
 def ground_truth_trace(
-    code: str, input_str: str, align_to_prompt: bool = True
+    code: str, input_str: str, align_to_prompt: bool = True, max_frames: int = -1
 ) -> tuple[list[TraceFrame], str | None]:
     """Return (ground-truth frames, error) for executing ``f(input_str)``.
 
@@ -192,7 +202,7 @@ def ground_truth_trace(
     ``error`` is non-None if the traced program raised; the frames captured up
     to that point are still returned.
     """
-    tracer = _GroundTruthTracer(code, input_str)
+    tracer = _GroundTruthTracer(code, input_str, max_frames=max_frames)
     tracer.run()
     frames = drop_entry_call(tracer.frames) if align_to_prompt else tracer.frames
     return frames, tracer.error
