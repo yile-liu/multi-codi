@@ -1,11 +1,12 @@
-"""Stage 2a: CODI self-distillation (single-span de-risk).
+"""Stage 2b: per-frame CODI self-distillation (multi-span).
 
 Shared-weight teacher+student initialized from the Stage-1 SFT model.
-- Teacher reads the full explicit trace (prompt+reasoning+answer), CE = L_teacher.
-- Student replaces the whole reasoning with `latent_steps` recurrent latents
-  (last hidden -> prj -> next input embed), then predicts the answer, CE = L_student.
-- KD aligns the hidden that predicts the first answer token (student's latent_end
-  output vs teacher's reasoning-end), teacher detached. L = a*Lt + b*Ls + g*Lkd.
+- Teacher reads the full explicit trace (prompt+trace), CE = L_teacher.
+- Student replaces each LINE frame's $LOCALS with a latent block (latent_start +
+  `latent_steps` recurrent latents + latent_end; last hidden -> prj -> next embed)
+  and teacher-forces the rest, CE = L_student over the emitted (non-locals) text.
+- KD aligns the hidden at each frame's `<|action_sep|>` (student after latents vs
+  teacher after locals), teacher detached. L = a*Lt + b*Ls + g*Lkd.
 """
 
 import argparse
@@ -46,49 +47,67 @@ class CodiModel(nn.Module):
     def _teacher(self, full_ids, labels, kd_pos):
         out = self.model(input_ids=full_ids[None], use_cache=False, output_hidden_states=True)
         ce = F.cross_entropy(out.logits[0, :-1], labels[1:], ignore_index=IGNORE_INDEX)
-        kd = [hs[0, kd_pos].detach() for hs in self._kd(out.hidden_states)]
+        pos = torch.tensor(kd_pos, device=full_ids.device)
+        kd = [hs[0, pos].detach() for hs in self._kd(out.hidden_states)]  # per layer: [n_span, H]
         return ce, kd
 
-    def _student(self, prompt_ids, answer_ids):
-        dev = prompt_ids.device
-        out = self.model(inputs_embeds=self._emb(prompt_ids[None]),
-                         use_cache=True, output_hidden_states=True)
-        cache, h = out.past_key_values, out.hidden_states[-1][:, -1:]
-
-        def step(embeds):
-            nonlocal cache
-            o = self.model(inputs_embeds=embeds, past_key_values=cache,
-                           use_cache=True, output_hidden_states=True)
-            cache = o.past_key_values
-            return o
-
-        o = step(self._emb(torch.tensor([[self.ls_id]], device=dev)))
+    def _latent_block(self, cache):
+        """latent_start + `latent_steps` recurrent latents + latent_end on top of
+        `cache`. Returns (new cache, logits predicting the next real token)."""
+        dev = self.model.get_input_embeddings().weight.device
+        o = self.model(inputs_embeds=self._emb(torch.tensor([[self.ls_id]], device=dev)),
+                       past_key_values=cache, use_cache=True, output_hidden_states=True)
         h = o.hidden_states[-1][:, -1:]
         for _ in range(self.latent_steps):
-            o = step(self.prj(h))
+            o = self.model(inputs_embeds=self.prj(h), past_key_values=o.past_key_values,
+                           use_cache=True, output_hidden_states=True)
             h = o.hidden_states[-1][:, -1:]
-        # latent_end output predicts answer[0]; collect KD hidden here.
-        o = step(self._emb(torch.tensor([[self.le_id]], device=dev)))
-        logit0 = o.logits[:, -1:]
-        kd = [hs[:, -1] for hs in self._kd(o.hidden_states)]
-        # teacher-forced answer; its logits[:-1] predict answer[1:].
-        o = self.model(inputs_embeds=self._emb(answer_ids[None]), past_key_values=cache, use_cache=True)
-        logits = torch.cat([logit0, o.logits[:, :-1]], dim=1)
-        ce = F.cross_entropy(logits[0], answer_ids)
-        return ce, kd
+        o = self.model(inputs_embeds=self._emb(torch.tensor([[self.le_id]], device=dev)),
+                       past_key_values=o.past_key_values, use_cache=True)
+        return o.past_key_values, o.logits[:, -1]
+
+    def _student(self, prompt_ids, trace_ids, spans):
+        # Segments cover trace_ids in order; locals (trace_ids[i+1:j]) are dropped
+        # and replaced by a latent block. kd=True marks a frame's <|action_sep|>.
+        segs, prev, kd = [], 0, False
+        for i, j in spans:
+            segs.append(("text", trace_ids[prev:i + 1], kd))
+            segs.append(("latent", None, False))
+            prev, kd = j, True
+        segs.append(("text", trace_ids[prev:], kd))
+
+        out = self.model(inputs_embeds=self._emb(prompt_ids[None]), use_cache=True)
+        cache, prev_logits = out.past_key_values, out.logits[:, -1]  # predicts trace_ids[0]
+        ce_logits, ce_targets, kd_vecs = [], [], []
+        for kind, ids, kd in segs:
+            if kind == "latent":  # prev_logits predicted dropped locals; overwrite, no CE
+                cache, prev_logits = self._latent_block(cache)
+                continue
+            ce_logits.append(prev_logits); ce_targets.append(ids[:1])
+            out = self.model(inputs_embeds=self._emb(ids[None]), past_key_values=cache,
+                             use_cache=True, output_hidden_states=True)
+            cache, logits = out.past_key_values, out.logits[0]
+            if ids.numel() > 1:
+                ce_logits.append(logits[:-1]); ce_targets.append(ids[1:])
+            prev_logits = logits[-1:]
+            if kd:  # action_sep is this segment's first token
+                kd_vecs.append([hs[0, 0] for hs in self._kd(out.hidden_states)])
+        ce = F.cross_entropy(torch.cat(ce_logits), torch.cat(ce_targets))
+        s_kd = [torch.stack([v[l] for v in kd_vecs]) for l in range(len(kd_vecs[0]))]
+        return ce, s_kd
 
     def forward(self, examples):
         dev = self.model.get_input_embeddings().weight.device
         tl = sl = kl = 0.0
         for ex in examples:
             prompt = torch.tensor(ex["prompt_ids"], device=dev)
-            reason = torch.tensor(ex["reasoning_ids"], device=dev)
-            answer = torch.tensor(ex["answer_ids"], device=dev)
-            full = torch.cat([prompt, reason, answer])
-            labels = torch.cat([full.new_full((len(prompt),), IGNORE_INDEX), reason, answer])
-            kd_pos = len(prompt) + len(reason) - 1
+            trace = torch.tensor(ex["trace_ids"], device=dev)
+            spans = ex["spans"]
+            full = torch.cat([prompt, trace])
+            labels = torch.cat([full.new_full((len(prompt),), IGNORE_INDEX), trace])
+            kd_pos = [len(prompt) + j for _, j in spans]
             t_ce, t_kd = self._teacher(full, labels, kd_pos)
-            s_ce, s_kd = self._student(prompt, answer)
+            s_ce, s_kd = self._student(prompt, trace, spans)
             kd = torch.stack([F.smooth_l1_loss(s.reshape(-1), t.reshape(-1).detach())
                               for s, t in zip(s_kd, t_kd)]).mean()
             tl, sl, kl = tl + t_ce, sl + s_ce, kl + kd

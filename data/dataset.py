@@ -17,7 +17,8 @@ from __future__ import annotations
 
 from .ground_truth import ground_truth_trace, make_trace_context
 from .trace_format import (
-    END_OF_TEXT,
+    ACTION_SEP,
+    LINE_SEP,
     TraceEvent,
     render_frames_to_generation,
 )
@@ -54,27 +55,41 @@ def build_example(
 def build_codi_example(
     code: str, input_str: str, tokenizer, *, max_seq_len: int, max_frames: int = -1
 ) -> dict | None:
-    """Single-span CODI example: split a trace into prompt / reasoning / answer.
+    """Per-frame (multi-span) CODI example: each LINE frame's $LOCALS (the tokens
+    between ``<|line_sep|>`` and ``<|action_sep|>``) becomes a latent block at train time.
 
-    reasoning = all intermediate frames (the "thinking" the latents replace);
-    answer = the final RETURN/EXCEPTION frame + end_of_text (what the student
-    predicts). Teacher reads prompt+reasoning+answer; KD aligns the hidden that
-    predicts the first answer token. Returns None to skip (degenerate/too long).
+    Returns ``{prompt_ids, trace_ids, spans}`` where each span ``(i, j)`` indexes
+    ``trace_ids``: ``i`` = the ``<|line_sep|>``, ``j`` = its frame's ``<|action_sep|>``,
+    and ``trace_ids[i+1:j]`` is the locals the student replaces with latents.
+    Teacher reads prompt+trace verbatim; KD aligns the hidden at each ``j``.
     """
     frames, error = ground_truth_trace(code, input_str, align_to_prompt=True, max_frames=max_frames)
-    if error == "frames_exceeded":
+    if error == "frames_exceeded" or not frames:
         return None
-    if len(frames) < 2 or frames[-1].event not in (TraceEvent.RETURN, TraceEvent.EXCEPTION):
+    if frames[-1].event not in (TraceEvent.RETURN, TraceEvent.EXCEPTION):
         return None
     bos = [tokenizer.bos_token_id] if tokenizer.bos_token_id is not None else []
     prompt_ids = bos + tokenizer.encode(_prompt_str(code, input_str), add_special_tokens=False)
-    # render_frames_to_generation always ends with END_OF_TEXT; strip it for reasoning.
-    reasoning_str = render_frames_to_generation(frames[:-1])[: -len(END_OF_TEXT)]
-    reasoning_ids = tokenizer.encode(reasoning_str, add_special_tokens=False)
-    answer_ids = tokenizer.encode(render_frames_to_generation(frames[-1:]), add_special_tokens=False)
-    if len(prompt_ids) + len(reasoning_ids) + len(answer_ids) > max_seq_len:
+    trace_ids = tokenizer.encode(render_frames_to_generation(frames), add_special_tokens=False)
+    if len(prompt_ids) + len(trace_ids) > max_seq_len:
         return None
-    return {"prompt_ids": prompt_ids, "reasoning_ids": reasoning_ids, "answer_ids": answer_ids}
+    ls = tokenizer.convert_tokens_to_ids(LINE_SEP)
+    asep = tokenizer.convert_tokens_to_ids(ACTION_SEP)
+    spans, i, n = [], 0, len(trace_ids)
+    while i < n:
+        if trace_ids[i] == ls:
+            j = i + 1
+            while j < n and trace_ids[j] != asep:
+                j += 1
+            if j == n:
+                break
+            spans.append((i, j))
+            i = j + 1
+        else:
+            i += 1
+    if not spans:
+        return None
+    return {"prompt_ids": prompt_ids, "trace_ids": trace_ids, "spans": spans}
 
 
 def _load_cache(cache_dir, n_samples):
