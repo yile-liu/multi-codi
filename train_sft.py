@@ -51,6 +51,7 @@ def main():
     if tok.pad_token_id is None:
         tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.bfloat16)
+    model.config.use_cache = False  # required with gradient checkpointing
     n_added = add_trace_tokens(tok)
     resize_and_init(model, tok, n_added)
 
@@ -69,6 +70,8 @@ def main():
         weight_decay=0.1,
         max_grad_norm=1.0,
         bf16=True,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         logging_steps=5,
         save_strategy="no",
         report_to=[],
