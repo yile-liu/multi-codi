@@ -16,7 +16,11 @@ with the prompt prefix set to ``-100``).
 from __future__ import annotations
 
 from .ground_truth import ground_truth_trace, make_trace_context
-from .trace_format import render_frames_to_generation
+from .trace_format import (
+    END_OF_TEXT,
+    TraceEvent,
+    render_frames_to_generation,
+)
 
 IGNORE_INDEX = -100
 
@@ -49,6 +53,42 @@ def build_example(
     return input_ids, [IGNORE_INDEX] * len(prompt_ids) + trace_ids
 
 
+def build_codi_example(
+    code: str, input_str: str, tokenizer, *, max_seq_len: int
+) -> dict | None:
+    """Single-span CODI example: split a trace into prompt / reasoning / answer.
+
+    reasoning = all intermediate frames (the "thinking" the latents replace);
+    answer = the final RETURN/EXCEPTION frame + end_of_text (what the student
+    predicts). Teacher reads prompt+reasoning+answer; KD aligns the hidden that
+    predicts the first answer token. Returns None to skip (degenerate/too long).
+    """
+    frames, _error = ground_truth_trace(code, input_str, align_to_prompt=True)
+    if len(frames) < 2 or frames[-1].event not in (TraceEvent.RETURN, TraceEvent.EXCEPTION):
+        return None
+    bos = [tokenizer.bos_token_id] if tokenizer.bos_token_id is not None else []
+    prompt_ids = bos + tokenizer.encode(_prompt_str(code, input_str), add_special_tokens=False)
+    # render_frames_to_generation always ends with END_OF_TEXT; strip it for reasoning.
+    reasoning_str = render_frames_to_generation(frames[:-1])[: -len(END_OF_TEXT)]
+    reasoning_ids = tokenizer.encode(reasoning_str, add_special_tokens=False)
+    answer_ids = tokenizer.encode(render_frames_to_generation(frames[-1:]), add_special_tokens=False)
+    if len(prompt_ids) + len(reasoning_ids) + len(answer_ids) > max_seq_len:
+        return None
+    return {"prompt_ids": prompt_ids, "reasoning_ids": reasoning_ids, "answer_ids": answer_ids}
+
+
+def build_codi_dataset(
+    tokenizer, *, n_samples: int = -1, max_seq_len: int = 4096, split: str = "train"
+) -> list[dict]:
+    """CODI examples (prompt/reasoning/answer) over a CRUXEval split."""
+    rows = _load_cruxeval_rows()
+    rows = cruxeval_split(rows, split)
+    if n_samples > 0:
+        rows = rows[:n_samples]
+    out = [build_codi_example(r["code"], r["input"], tokenizer, max_seq_len=max_seq_len) for r in rows]
+    return [ex for ex in out if ex is not None]
+
+
 def cruxeval_split(rows, split: str = "all", val_stride: int = 5):
     """Deterministic interleaved train/val split of the CRUXEval rows.
 
@@ -68,23 +108,25 @@ def cruxeval_split(rows, split: str = "all", val_stride: int = 5):
     raise ValueError(f"split must be train/val/all, got {split!r}")
 
 
-def build_dataset(
-    tokenizer, *, n_samples: int = -1, max_seq_len: int = 8192, split: str = "all"
-) -> list[tuple[list[int], list[int]]]:
-    """Tokenized CRUXEval-O traces. ``n_samples<=0`` uses all of ``split``."""
+def _load_cruxeval_rows():
+    """Prefer a local save_to_disk copy; HF builder FileLock dies on NFS caches."""
     import os
 
-    # Prefer local save_to_disk copy; HF builder FileLock dies on NFS caches.
     local_dir = os.environ.get("CRUXEVAL_DIR")
     if local_dir and os.path.isdir(local_dir):
         from datasets import load_from_disk
 
-        rows = list(load_from_disk(local_dir))
-    else:
-        from datasets import load_dataset
+        return list(load_from_disk(local_dir))
+    from datasets import load_dataset
 
-        rows = list(load_dataset("cruxeval-org/cruxeval", split="test"))
-    rows = cruxeval_split(rows, split)
+    return list(load_dataset("cruxeval-org/cruxeval", split="test"))
+
+
+def build_dataset(
+    tokenizer, *, n_samples: int = -1, max_seq_len: int = 8192, split: str = "all"
+) -> list[tuple[list[int], list[int]]]:
+    """Tokenized CRUXEval-O traces. ``n_samples<=0`` uses all of ``split``."""
+    rows = cruxeval_split(_load_cruxeval_rows(), split)
     if n_samples > 0:
         rows = rows[:n_samples]
     examples = (build_example(r["code"], r["input"], tokenizer, max_seq_len=max_seq_len) for r in rows)
