@@ -49,7 +49,9 @@ class CodiModel(nn.Module):
         return self.model.get_input_embeddings()(ids)
 
     def _teacher(self, full_ids, labels, kd_pos):
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         out = self.model(input_ids=full_ids[None], use_cache=False, output_hidden_states=True)
+        self.model.gradient_checkpointing_disable()  # teacher-only; student keeps KV cache
         ce = F.cross_entropy(out.logits[0, :-1], labels[1:], ignore_index=IGNORE_INDEX)
         pos = torch.tensor(kd_pos, device=full_ids.device)
         kd = [hs[0, pos].detach() for hs in self._kd(out.hidden_states)]  # per layer: [n_span, H]
