@@ -15,7 +15,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 torchrun --nproc_per_node=4 --master_port=$((20000 + RANDOM % 10000)) train_codi.py \
   --model model_weights/sft-coder-1.5b/checkpoint-10392 \
   --output_dir model_weights/codi-coder-1.5b-ckpt10392 \
-  --max_seq_len 6144 \
+  --max_seq_len 3072 \
   --latent_steps 1 \
   --epochs 5 \
   --lr 1e-5 \
