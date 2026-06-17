@@ -49,12 +49,15 @@ class CodiModel(nn.Module):
         return self.model.get_input_embeddings()(ids)
 
     def _teacher(self, full_ids, labels, kd_pos):
-        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
-        out = self.model(input_ids=full_ids[None], use_cache=False, output_hidden_states=True)
-        self.model.gradient_checkpointing_disable()  # teacher-only; student keeps KV cache
-        ce = F.cross_entropy(out.logits[0, :-1], labels[1:], ignore_index=IGNORE_INDEX)
         pos = torch.tensor(kd_pos, device=full_ids.device)
-        kd = [hs[0, pos].detach() for hs in self._kd(out.hidden_states)]  # per layer: [n_span, H]
+        with torch.no_grad():  # KD targets are detached; take hiddens without a backward graph
+            hs = self.model(input_ids=full_ids[None], use_cache=False, output_hidden_states=True).hidden_states
+            kd = [l[0, pos] for l in self._kd(hs)]
+        # CE forward without output_hidden_states so grad-checkpointing actually frees layer acts.
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        logits = self.model(input_ids=full_ids[None], use_cache=False).logits
+        self.model.gradient_checkpointing_disable()  # teacher-only; student keeps KV cache
+        ce = F.cross_entropy(logits[0, :-1], labels[1:], ignore_index=IGNORE_INDEX)
         return ce, kd
 
     def _latent_block(self, cache):
@@ -91,7 +94,7 @@ class CodiModel(nn.Module):
                 continue
             ce_logits.append(prev_logits); ce_targets.append(ids[:1])
             out = self.model(inputs_embeds=self._emb(ids[None]), past_key_values=cache,
-                             use_cache=True, output_hidden_states=True)
+                             use_cache=True, output_hidden_states=kd)  # hiddens only for KD anchors
             cache, logits = out.past_key_values, out.logits[0]
             if ids.numel() > 1:
                 ce_logits.append(logits[:-1]); ce_targets.append(ids[1:])
