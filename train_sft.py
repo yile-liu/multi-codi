@@ -18,6 +18,7 @@ from transformers.trainer_utils import get_last_checkpoint
 
 from data.dataset import IGNORE_INDEX, build_dataset
 from tokens import add_trace_tokens, resize_and_init
+from wb import wandb_init
 
 
 def collate(batch, pad_id):
@@ -63,6 +64,8 @@ def main():
                        n_samples=args.n_samples, max_seq_len=args.max_seq_len, max_frames=args.max_frames)
     print(f"{len(ds)} trace examples")
 
+    report_to = wandb_init(args, "sft")
+
     targs = TrainingArguments(
         output_dir=args.output_dir,
         per_device_train_batch_size=args.batch_size,
@@ -80,7 +83,7 @@ def main():
         logging_steps=5,
         save_strategy="epoch",
         save_total_limit=3,
-        report_to=[],
+        report_to=report_to,
     )
     trainer = Trainer(
         model=model,

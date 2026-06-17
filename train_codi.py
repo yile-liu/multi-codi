@@ -17,9 +17,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 from transformers.trainer_utils import get_last_checkpoint
+from transformers.utils import WEIGHTS_NAME
 
 from data.dataset import IGNORE_INDEX, build_codi_dataset
 from tokens import add_trace_tokens, token_ids
+from wb import wandb_init
 
 
 class CodiModel(nn.Module):
@@ -121,7 +123,20 @@ class CodiModel(nn.Module):
 class CodiTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, **kw):
         out = model(inputs["examples"])
+        self._sub = {k: float(out[k]) for k in ("teacher_loss", "student_loss", "kd_loss")}
         return (out["loss"], out) if return_outputs else out["loss"]
+
+    def log(self, logs, *a, **k):  # surface sub-losses to console + wandb
+        if hasattr(self, "_sub"):
+            logs.update(self._sub)
+        super().log(logs, *a, **k)
+
+    def _save(self, output_dir=None, state_dict=None):
+        # tied backbone weights -> safetensors (5.x default) rejects shared tensors; torch.save instead.
+        output_dir = output_dir or self.args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        torch.save(state_dict or self.model.state_dict(), os.path.join(output_dir, WEIGHTS_NAME))
+        torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
 
 def main():
@@ -158,6 +173,8 @@ def main():
                             n_samples=args.n_samples, max_seq_len=args.max_seq_len, max_frames=args.max_frames)
     print(f"{len(ds)} codi examples, latent_steps={args.latent_steps}")
 
+    report_to = wandb_init(args, "codi")
+
     targs = TrainingArguments(
         output_dir=args.output_dir,
         per_device_train_batch_size=args.batch_size,
@@ -174,8 +191,7 @@ def main():
         logging_steps=5,
         save_strategy="epoch",
         save_total_limit=2,
-        save_safetensors=False,  # CodiModel wrapper has tied weights; use torch.save
-        report_to=[],
+        report_to=report_to,
         remove_unused_columns=False,
         label_names=[],
     )
