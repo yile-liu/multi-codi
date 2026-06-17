@@ -8,6 +8,7 @@
 
 # Stage 2b: per-frame (multi-span) CODI self-distillation. teacher=student init from Stage-1 SFT.
 # 4x A100-40GB DDP. Cache built offline on the login node (precompute.py, CPU-only).
+export PATH=/proj/assert-berzelius/users/x_sirli/conda/envs/CWM/bin:$PATH
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTHONHASHSEED=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 

@@ -9,6 +9,7 @@
 # Stage 1: full explicit-trace SFT = baseline = teacher. Qwen2.5-Coder-1.5B, full FT.
 # 4x A100-40GB DDP via torchrun; grad checkpointing on. bs2*ga2*4 = eff 16.
 # Cache built offline on the login node (precompute.py, CPU-only).
+export PATH=/proj/assert-berzelius/users/x_sirli/conda/envs/CWM/bin:$PATH
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTHONHASHSEED=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
