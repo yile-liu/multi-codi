@@ -37,10 +37,13 @@ class CodiModel(nn.Module):
         )
         ref = base.get_input_embeddings().weight
         self.prj.to(device=ref.device, dtype=ref.dtype)
-        self.ls_id, self.le_id = latent_start_id, latent_end_id
         self.latent_steps, self.a, self.b, self.g = latent_steps, a, b, g
         self.kd_layers = kd_layers  # None -> all layers
         self.single_anchor = single_anchor  # KD at last span only (vanilla-CODI ablation)
+        self.register_buffer("_ls_tok", torch.tensor([[latent_start_id]], dtype=torch.long), persistent=False)
+        self.register_buffer("_le_tok", torch.tensor([[latent_end_id]], dtype=torch.long), persistent=False)
+        self.body = base.model
+        self.head = base.lm_head
 
     def _kd(self, hs):
         return hs[1:] if self.kd_layers is None else tuple(hs[l] for l in self.kd_layers)
@@ -63,17 +66,13 @@ class CodiModel(nn.Module):
     def _latent_block(self, cache):
         """latent_start + `latent_steps` recurrent latents + latent_end on top of
         `cache`. Returns (new cache, logits predicting the next real token)."""
-        dev = self.model.get_input_embeddings().weight.device
-        o = self.model(inputs_embeds=self._emb(torch.tensor([[self.ls_id]], device=dev)),
-                       past_key_values=cache, use_cache=True, output_hidden_states=True)
-        h = o.hidden_states[-1][:, -1:]
+        o = self.body(inputs_embeds=self._emb(self._ls_tok), past_key_values=cache, use_cache=True)
+        cache, h = o.past_key_values, o.last_hidden_state[:, -1:]
         for _ in range(self.latent_steps):
-            o = self.model(inputs_embeds=self.prj(h), past_key_values=o.past_key_values,
-                           use_cache=True, output_hidden_states=True)
-            h = o.hidden_states[-1][:, -1:]
-        o = self.model(inputs_embeds=self._emb(torch.tensor([[self.le_id]], device=dev)),
-                       past_key_values=o.past_key_values, use_cache=True)
-        return o.past_key_values, o.logits[:, -1]
+            o = self.body(inputs_embeds=self.prj(h), past_key_values=cache, use_cache=True)
+            cache, h = o.past_key_values, o.last_hidden_state[:, -1:]
+        o = self.body(inputs_embeds=self._emb(self._le_tok), past_key_values=cache, use_cache=True)
+        return o.past_key_values, self.head(o.last_hidden_state[:, -1])
 
     def _student(self, prompt_ids, trace_ids, spans):
         # Segments cover trace_ids in order; locals (trace_ids[i+1:j]) are dropped
@@ -119,8 +118,7 @@ class CodiModel(nn.Module):
             s_ce, s_kd = self._student(prompt, trace, spans)
             if self.single_anchor:  # keep only the last frame's anchor (per layer)
                 t_kd, s_kd = [t[-1:] for t in t_kd], [s[-1:] for s in s_kd]
-            kd = torch.stack([F.smooth_l1_loss(s.reshape(-1), t.reshape(-1).detach())
-                              for s, t in zip(s_kd, t_kd)]).mean()
+            kd = F.smooth_l1_loss(torch.stack(s_kd), torch.stack(t_kd).detach())
             tl, sl, kl = tl + t_ce, sl + s_ce, kl + kd
         n = len(examples)
         loss = self.a * tl / n + self.b * sl / n + self.g * kl / n
@@ -131,12 +129,12 @@ class CodiModel(nn.Module):
 class CodiTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, **kw):
         out = model(inputs["examples"])
-        self._sub = {k: float(out[k]) for k in ("teacher_loss", "student_loss", "kd_loss")}
+        self._sub = {k: out[k].detach() for k in ("teacher_loss", "student_loss", "kd_loss")}
         return (out["loss"], out) if return_outputs else out["loss"]
 
     def log(self, logs, *a, **k):  # surface sub-losses to console + wandb
         if hasattr(self, "_sub"):
-            logs.update(self._sub)
+            logs.update({k: v.item() for k, v in self._sub.items()})
         super().log(logs, *a, **k)
 
     def _save(self, output_dir=None, state_dict=None):
@@ -166,6 +164,7 @@ def main():
     ap.add_argument("--batch_size", type=int, default=1)
     ap.add_argument("--grad_accum", type=int, default=4)
     ap.add_argument("--max_steps", type=int, default=-1)
+    ap.add_argument("--save_steps", type=int, default=500)
     ap.add_argument("--alpha", type=float, default=1.0)
     ap.add_argument("--beta", type=float, default=1.0)
     ap.add_argument("--gamma", type=float, default=1.0)
@@ -203,7 +202,8 @@ def main():
         optim="paged_adamw_8bit",
         ddp_find_unused_parameters=False,
         logging_steps=5,
-        save_strategy="epoch",
+        save_strategy="steps",
+        save_steps=args.save_steps,
         save_total_limit=None,
         report_to=report_to,
         remove_unused_columns=False,

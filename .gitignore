@@ -5,6 +5,8 @@ model_weights/
 /tmp/
 sft_trace_*.log
 precompute_*.log
+codi_trace_*.log
+eval_crux_*.log
 results_*.json
 data/*/data/
 data/cache/
