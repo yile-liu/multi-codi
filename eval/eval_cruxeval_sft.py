@@ -10,6 +10,7 @@ import json
 import os
 import subprocess
 import sys
+from datetime import timedelta
 
 import torch
 import torch.distributed as dist
@@ -56,7 +57,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
     ap.add_argument("--n_samples", type=int, default=-1)
-    ap.add_argument("--max_new_tokens", type=int, default=2048)
+    ap.add_argument("--max_new_tokens", type=int, default=8192)
     ap.add_argument("--batch_size", type=int, default=8)
     ap.add_argument("--out", default="")
     args = ap.parse_args()
@@ -67,7 +68,7 @@ def main():
     world = int(os.environ.get("WORLD_SIZE", 1))
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     if ddp:
-        dist.init_process_group("nccl")
+        dist.init_process_group("nccl", timeout=timedelta(hours=1))  # ranks finish at different times under long gens
     torch.cuda.set_device(local_rank)
 
     tok = AutoTokenizer.from_pretrained(args.model, use_fast=True)
@@ -98,7 +99,7 @@ def main():
             ok = pred is not None and check_correct(r["code"], r["output"], pred)
             n_fmt += pred is not None
             n_correct += ok
-            results.append({"id": r["id"], "expected": r["output"], "predicted": pred, "correct": ok})
+            results.append({"id": r["id"], "expected": r["output"], "predicted": pred, "correct": ok, "generation": gen})
         if rank == 0 and (bi + 1) % 5 == 0:
             done = batch_start + len(batch)
             print(f"  rank0 {done}/{len(shard)}  pass@1={n_correct/done:.4f}", flush=True)

@@ -29,45 +29,18 @@ def _prompt_str(code: str, input_str: str) -> str:
     return f"<|trace_context_start|>{ctx}<|frame_sep|><|call_sep|>{{}}<|action_sep|>def main():\n<|frame_sep|>"
 
 
-def build_example(
-    code: str, input_str: str, tokenizer, *, max_seq_len: int, max_frames: int = -1
-) -> tuple[list[int], list[int]] | None:
-    """Return ``(input_ids, labels)``, or None to skip (empty / too long).
-
-    A raised program is kept: its EXCEPTION frame is part of the trace to predict.
-    ``render_frames_to_generation`` already terminates the trace with ``<|end_of_text|>``.
-    """
+def _tokenize_trace(code, input_str, tokenizer, *, max_seq_len, max_frames):
+    """``(prompt_ids, trace_ids, spans)``; None to skip. Trace must terminate in
+    RETURN/EXCEPTION and have >=1 LINE span. Span ``(i, j)``: ``trace_ids[i]`` is
+    ``<|line_sep|>``, ``j`` its ``<|action_sep|>``, ``trace_ids[i+1:j]`` the locals
+    a CODI student swaps for a latent block. Single source of membership so the SFT
+    baseline and CODI train on identical data."""
     frames, error = ground_truth_trace(code, input_str, align_to_prompt=True, max_frames=max_frames)
     if not frames or error == "frames_exceeded":
         return None
-    # Qwen has no BOS (bos_token_id is None); CWM did. Prepend only if present.
-    bos = [tokenizer.bos_token_id] if tokenizer.bos_token_id is not None else []
-    prompt_ids = bos + tokenizer.encode(
-        _prompt_str(code, input_str), add_special_tokens=False
-    )
-    trace_ids = tokenizer.encode(render_frames_to_generation(frames), add_special_tokens=False)
-    input_ids = prompt_ids + trace_ids
-    if len(input_ids) > max_seq_len:
-        return None
-    return input_ids, [IGNORE_INDEX] * len(prompt_ids) + trace_ids
-
-
-def build_codi_example(
-    code: str, input_str: str, tokenizer, *, max_seq_len: int, max_frames: int = -1
-) -> dict | None:
-    """Per-frame (multi-span) CODI example: each LINE frame's $LOCALS (the tokens
-    between ``<|line_sep|>`` and ``<|action_sep|>``) becomes a latent block at train time.
-
-    Returns ``{prompt_ids, trace_ids, spans}`` where each span ``(i, j)`` indexes
-    ``trace_ids``: ``i`` = the ``<|line_sep|>``, ``j`` = its frame's ``<|action_sep|>``,
-    and ``trace_ids[i+1:j]`` is the locals the student replaces with latents.
-    Teacher reads prompt+trace verbatim; KD aligns the hidden at each ``j``.
-    """
-    frames, error = ground_truth_trace(code, input_str, align_to_prompt=True, max_frames=max_frames)
-    if error == "frames_exceeded" or not frames:
-        return None
     if frames[-1].event not in (TraceEvent.RETURN, TraceEvent.EXCEPTION):
         return None
+    # Qwen has no BOS (bos_token_id is None); CWM did. Prepend only if present.
     bos = [tokenizer.bos_token_id] if tokenizer.bos_token_id is not None else []
     prompt_ids = bos + tokenizer.encode(_prompt_str(code, input_str), add_special_tokens=False)
     trace_ids = tokenizer.encode(render_frames_to_generation(frames), add_special_tokens=False)
@@ -89,6 +62,24 @@ def build_codi_example(
             i += 1
     if not spans:
         return None
+    return prompt_ids, trace_ids, spans
+
+
+def build_example(code, input_str, tokenizer, *, max_seq_len, max_frames=-1):
+    """SFT ``(input_ids, labels)`` with the prompt masked; None to skip."""
+    r = _tokenize_trace(code, input_str, tokenizer, max_seq_len=max_seq_len, max_frames=max_frames)
+    if r is None:
+        return None
+    prompt_ids, trace_ids, _ = r
+    return prompt_ids + trace_ids, [IGNORE_INDEX] * len(prompt_ids) + trace_ids
+
+
+def build_codi_example(code, input_str, tokenizer, *, max_seq_len, max_frames=-1):
+    """Multi-span CODI example ``{prompt_ids, trace_ids, spans}``; None to skip."""
+    r = _tokenize_trace(code, input_str, tokenizer, max_seq_len=max_seq_len, max_frames=max_frames)
+    if r is None:
+        return None
+    prompt_ids, trace_ids, spans = r
     return {"prompt_ids": prompt_ids, "trace_ids": trace_ids, "spans": spans}
 
 
@@ -146,7 +137,8 @@ def build_dataset(
 ) -> list[tuple[list[int], list[int]]]:
     """Tokenized trace examples over ``sources``, or a precomputed cache."""
     if cache_dir:
-        return [(e["input_ids"], e["labels"]) for e in _load_cache(cache_dir, n_samples)]
+        ex = _load_cache(cache_dir, n_samples)
+        return [(e["input_ids"], e["labels"]) for e in ex if len(e["input_ids"]) <= max_seq_len]
     rows = rows_for_sources(sources)
     if n_samples > 0:
         rows = rows[:n_samples]

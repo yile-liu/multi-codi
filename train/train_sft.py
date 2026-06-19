@@ -78,12 +78,13 @@ def main():
         weight_decay=0.1,
         max_grad_norm=1.0,
         bf16=True,
-        optim="adamw_bnb_8bit",  # 8-bit Adam: optimizer states ~12GB->~3GB, fits 3B on 40GB
+        optim="paged_adamw_8bit",  # 8-bit Adam (paged), aligned with train_codi.py
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
         logging_steps=5,
-        save_strategy="epoch",
-        save_total_limit=None,  # keep all epoch checkpoints
+        save_strategy="steps",
+        save_steps=1000,
+        save_total_limit=None,  # keep every checkpoint
         report_to=report_to,
     )
     trainer = Trainer(

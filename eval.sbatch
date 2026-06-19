@@ -12,7 +12,7 @@
 export PATH=/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/bin:$PATH
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTHONHASHSEED=0
 
-torchrun --nproc_per_node=2 --master_port=$((20000 + RANDOM % 10000)) "${SCRIPT:-eval_cruxeval_sft.py}" \
+torchrun --nproc_per_node=2 --master_port=$((20000 + RANDOM % 10000)) -m "${SCRIPT:-eval.eval_cruxeval_sft}" \
   --model "${MODEL:-model_weights/sft-coder-1.5b/checkpoint-6928}" \
   --n_samples "${N:--1}" \
   --out "${OUT:-results/cruxeval_ckpt6928.json}"

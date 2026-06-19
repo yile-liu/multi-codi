@@ -4,7 +4,7 @@ No change to eval/training. Reads eval_cruxeval_*.py's --out JSON (per-sample
 id+correct), recomputes each id's LINE-frame count (= #latent spans = #KD
 anchors, the verifiable-CODI difficulty axis) via the model-free tracer, bins,
 and reports pass@1 per bin. Run from codi_trace/:
-    python stats_by_frames.py --results results.json
+    python -m eval.stats_by_frames --results results.json
 Compare two runs (e.g. per-frame vs single-anchor CODI) on the same id set to
 see the gap widen with frame count.
 """

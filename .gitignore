@@ -3,10 +3,11 @@ __pycache__/
 .pytest_cache/
 model_weights/
 /tmp/
-sft_trace_*.log
+sft_*.log
 precompute_*.log
 codi_trace_*.log
 eval_crux_*.log
 results_*.json
 data/*/data/
 data/cache/
+*.out

@@ -6,6 +6,7 @@ latent_steps recurrent latents + latent_end), mirroring training _student.
 import argparse
 import json
 import os
+from datetime import timedelta
 
 import torch
 import torch.distributed as dist
@@ -13,9 +14,9 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from data.dataset import _prompt_str
 from data.sources import load_cruxeval
-from eval_cruxeval_sft import check_correct, extract_answer_trace_full
+from eval.eval_cruxeval_sft import check_correct, extract_answer_trace_full
 from tokens import add_trace_tokens, token_ids
-from train_codi import CodiModel
+from train.train_codi import CodiModel
 
 
 def load_codi(m, latent_steps, dev):
@@ -57,7 +58,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
     ap.add_argument("--n_samples", type=int, default=-1)
-    ap.add_argument("--max_new_tokens", type=int, default=2048)
+    ap.add_argument("--max_new_tokens", type=int, default=8192)
     ap.add_argument("--latent_steps", type=int, default=1)
     ap.add_argument("--out", default="")
     args = ap.parse_args()
@@ -67,7 +68,7 @@ def main():
     world = int(os.environ.get("WORLD_SIZE", 1))
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     if ddp:
-        dist.init_process_group("nccl")
+        dist.init_process_group("nccl", timeout=timedelta(hours=1))  # ranks finish at different times under long gens
     torch.cuda.set_device(local_rank)
 
     tok, ids, model = load_codi(args.model, args.latent_steps, local_rank)
@@ -90,7 +91,7 @@ def main():
         ok = pred is not None and check_correct(r["code"], r["output"], pred)
         n_fmt += pred is not None
         n_correct += ok
-        results.append({"id": r["id"], "expected": r["output"], "predicted": pred, "correct": ok})
+        results.append({"id": r["id"], "expected": r["output"], "predicted": pred, "correct": ok, "generation": gen})
         if rank == 0 and (i + 1) % 20 == 0:
             print(f"  rank0 {i+1}/{len(shard)}  pass@1={n_correct/(i+1):.4f}", flush=True)
 
