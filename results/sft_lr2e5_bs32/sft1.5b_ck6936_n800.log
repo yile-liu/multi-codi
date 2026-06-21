@@ -1,0 +1,25 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6767800
+W0619 19:28:12.089000 7975 site-packages/torch/distributed/run.py:766] 
+W0619 19:28:12.089000 7975 site-packages/torch/distributed/run.py:766] *****************************************
+W0619 19:28:12.089000 7975 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0619 19:28:12.089000 7975 site-packages/torch/distributed/run.py:766] *****************************************
+The tokenizer you are loading from 'model_weights/sft-coder-1.5b/checkpoint-6936' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+`torch_dtype` is deprecated! Use `dtype` instead!
+The tokenizer you are loading from 'model_weights/sft-coder-1.5b/checkpoint-6936' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+`torch_dtype` is deprecated! Use `dtype` instead!
+Using the latest cached version of the dataset since cruxeval-org/cruxeval couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Using the latest cached version of the dataset since cruxeval-org/cruxeval couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'default' at /cephyr/users/siruil/Alvis/.cache/huggingface/datasets/cruxeval-org___cruxeval/default/0.0.0/b96af0450242eb4da433032b90998f25588a5d0f (last modified on Wed Jun 17 16:48:17 2026).
+Found the latest cached dataset configuration 'default' at /cephyr/users/siruil/Alvis/.cache/huggingface/datasets/cruxeval-org___cruxeval/default/0.0.0/b96af0450242eb4da433032b90998f25588a5d0f (last modified on Wed Jun 17 16:48:17 2026).
+  rank0 40/400  pass@1=0.4750
+  rank0 80/400  pass@1=0.5500
+  rank0 120/400  pass@1=0.5333
+  rank0 160/400  pass@1=0.5125
+  rank0 200/400  pass@1=0.5300
+  rank0 240/400  pass@1=0.5417
+  rank0 280/400  pass@1=0.5321
+  rank0 320/400  pass@1=0.5469
+  rank0 360/400  pass@1=0.5528
+  rank0 400/400  pass@1=0.5550
+
+CRUXEval-O pass@1=0.5463  valid_format=0.9900  (n=800, greedy)

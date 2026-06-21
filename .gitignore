@@ -2,12 +2,14 @@ __pycache__/
 *.pyc
 .pytest_cache/
 model_weights/
+/model_weights
 /tmp/
 sft_*.log
 precompute_*.log
 codi_trace_*.log
 eval_crux_*.log
 results_*.json
+results/**/*.json
 data/*/data/
 data/cache/
 *.out

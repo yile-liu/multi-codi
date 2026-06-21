@@ -1,0 +1,61 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6768791
+W0620 19:04:43.295000 3709571 site-packages/torch/distributed/run.py:766] 
+W0620 19:04:43.295000 3709571 site-packages/torch/distributed/run.py:766] *****************************************
+W0620 19:04:43.295000 3709571 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0620 19:04:43.295000 3709571 site-packages/torch/distributed/run.py:766] *****************************************
+The tokenizer you are loading from 'model_weights/sft-coder-1.5b/checkpoint-6936' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+`torch_dtype` is deprecated! Use `dtype` instead!
+The tokenizer you are loading from 'model_weights/sft-coder-1.5b/checkpoint-6936' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+The tokenizer you are loading from 'model_weights/sft-coder-1.5b/checkpoint-6936' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+The tokenizer you are loading from 'model_weights/sft-coder-1.5b/checkpoint-6936' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+55486 codi examples, latent_steps=2
+55486 codi examples, latent_steps=2
+55486 codi examples, latent_steps=2
+55486 codi examples, latent_steps=2
+wandb: Tracking run with wandb version 0.27.2
+wandb: W&B syncing is set to `offline` in this directory. Run `wandb online` or set WANDB_MODE=online to enable cloud syncing.
+wandb: Run data is saved locally in model_weights/codi-multi-1.5b-ls2/wandb/offline-run-20260620_190532-kzfirh0l
+[RANK 0] Detected kernel version 4.18.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+  0%|          | 0/1000 [00:00<?, ?it/s]Error invalid argument at line 691 in file /src/csrc/pythonInterface.cpp
+Error invalid argument at line 691 in file /src/csrc/pythonInterface.cpp
+Error invalid argument at line 691 in file /src/csrc/pythonInterface.cpp
+Error invalid argument at line 691 in file /src/csrc/pythonInterface.cpp
+W0620 19:06:16.625000 3709571 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 3709636 closing signal SIGTERM
+W0620 19:06:16.626000 3709571 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 3709637 closing signal SIGTERM
+W0620 19:06:16.627000 3709571 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 3709638 closing signal SIGTERM
+E0620 19:06:17.743000 3709571 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 3 (pid: 3709639) of binary: /mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/bin/python
+Traceback (most recent call last):
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/run.py", line 892, in main
+    run(args)
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+train.train_codi FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-06-20_19:06:16
+  host      : alvis4-42.int.private
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 3709639)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

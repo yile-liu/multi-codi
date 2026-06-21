@@ -83,7 +83,7 @@ def main():
         gradient_checkpointing_kwargs={"use_reentrant": False},
         logging_steps=5,
         save_strategy="steps",
-        save_steps=1000,
+        save_steps=500,
         save_total_limit=None,  # keep every checkpoint
         report_to=report_to,
     )
@@ -92,12 +92,12 @@ def main():
         args=targs,
         train_dataset=ds,
         data_collator=lambda b: collate(b, tok.pad_token_id),
+        processing_class=tok,  # tokenizer saved into every checkpoint
     )
-    # Auto-resume from the latest epoch checkpoint if the job was interrupted.
+    # Auto-resume from the latest checkpoint if the job was interrupted.
     ckpt = get_last_checkpoint(args.output_dir) if os.path.isdir(args.output_dir) else None
     trainer.train(resume_from_checkpoint=ckpt)
-    trainer.save_model(args.output_dir)
-    tok.save_pretrained(args.output_dir)
+    trainer._save_checkpoint(trainer.model, trial=None)  # final step as a resumable checkpoint-<step>
 
 
 if __name__ == "__main__":

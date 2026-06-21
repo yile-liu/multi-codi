@@ -217,10 +217,7 @@ def main():
     # Native checkpoints (CodiModel wrapper + optimizer) auto-resume if interrupted.
     ckpt = get_last_checkpoint(args.output_dir) if os.path.isdir(args.output_dir) else None
     trainer.train(resume_from_checkpoint=ckpt)
-    # Final: export the shared backbone + tokenizer + projector for Stage-3 eval.
-    model.model.save_pretrained(args.output_dir)
-    tok.save_pretrained(args.output_dir)
-    torch.save(model.prj.state_dict(), f"{args.output_dir}/thought_projector.pt")
+    trainer._save_checkpoint(trainer.model, trial=None)  # final step as a resumable, eval-loadable checkpoint-<step>
 
 
 if __name__ == "__main__":
