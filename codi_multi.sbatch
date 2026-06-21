@@ -12,7 +12,7 @@ export PATH=/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/bin:$PATH
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTHONHASHSEED=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# MODEL/OUTPUT_DIR/MAX_STEPS/LATENT_STEPS/SAVE_STEPS/ALPHA/BETA/GAMMA overridable via --export.
+# MODEL/OUTPUT_DIR/MAX_STEPS/LATENT_STEPS/SAVE_STEPS/ALPHA/BETA/GAMMA/SS_PROB overridable via --export.
 torchrun --nproc_per_node=4 --master_port=$((20000 + RANDOM % 10000)) -m train.train_codi \
   --model "${MODEL:-model_weights/temp}" \
   --output_dir "${OUTPUT_DIR:-model_weights/codi-temp}" \
@@ -24,6 +24,7 @@ torchrun --nproc_per_node=4 --master_port=$((20000 + RANDOM % 10000)) -m train.t
   --alpha "${ALPHA:-1.0}" \
   --beta "${BETA:-1.0}" \
   --gamma "${GAMMA:-1.0}" \
+  --ss_prob "${SS_PROB:-0}" \
   --lr 1e-5 \
   --batch_size "${BATCH:-1}" \
   --grad_accum "${ACCUM:-4}"
