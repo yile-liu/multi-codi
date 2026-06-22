@@ -16,7 +16,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
+from transformers import AutoModelForCausalLM, AutoTokenizer, DynamicCache, Trainer, TrainingArguments
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import WEIGHTS_NAME
 
@@ -28,7 +28,7 @@ from wb import wandb_init
 class CodiModel(nn.Module):
     def __init__(self, base, *, latent_start_id, latent_end_id, latent_steps,
                  a=1.0, b=1.0, g=1.0, kd_layers=None, single_anchor=False,
-                 ss_prob=0.0, ss_ramp_frac=0.5, ss_max_line=48):
+                 ss_prob=0.0, ss_ramp_frac=0.5):
         super().__init__()
         self.model = base
         h = base.config.hidden_size
@@ -42,9 +42,8 @@ class CodiModel(nn.Module):
         self.latent_steps, self.a, self.b, self.g = latent_steps, a, b, g
         self.kd_layers = kd_layers  # None -> all layers
         self.single_anchor = single_anchor  # KD at last span only (vanilla-CODI ablation)
-        # Scheduled sampling: ss_prob (ramped) of post-latent lines are free-run from the
-        # student's own argmax, matching eval. ss_p is the current (ramped) prob, set per step.
-        self.ss_prob, self.ss_ramp_frac, self.ss_max_line, self.ss_p = ss_prob, ss_ramp_frac, ss_max_line, 0.0
+        # scheduled sampling: ss_p (ramped per step) of post-latent lines feed the student's own argmax
+        self.ss_prob, self.ss_ramp_frac, self.ss_p = ss_prob, ss_ramp_frac, 0.0
         self.register_buffer("_ls_tok", torch.tensor([[latent_start_id]], dtype=torch.long), persistent=False)
         self.register_buffer("_le_tok", torch.tensor([[latent_end_id]], dtype=torch.long), persistent=False)
         self.body = base.model
@@ -79,29 +78,6 @@ class CodiModel(nn.Module):
         o = self.body(inputs_embeds=self._emb(self._le_tok), past_key_values=cache, use_cache=True)
         return o.past_key_values, self.head(o.last_hidden_state[:, -1])
 
-    def _student_free(self, ids, cache, prev_logits, ce_logits, ce_targets, kd_vecs, terminal):
-        """Scheduled-sampling variant of one post-latent text segment
-        ids=[action_sep, code..., line_sep]: action_sep (KD anchor) and the frame
-        boundary line_sep stay teacher-forced; the code is free-run from the
-        student's own argmax so the next latent block sits on self-generated text.
-        CE targets stay GT (Bengio'15); argmax detached, grad flows via the cache."""
-        ce_logits.append(prev_logits); ce_targets.append(ids[:1])  # action_sep
-        out = self.model(inputs_embeds=self._emb(ids[:1][None]), past_key_values=cache,
-                         use_cache=True, output_hidden_states=True)
-        cache, lg = out.past_key_values, out.logits[0, -1:]  # predicts ids[1]
-        kd_vecs.append([hs[0, 0] for hs in self._kd(out.hidden_states)])
-        end = ids.numel() if terminal else ids.numel() - 1  # free-run up to (excl.) GT line_sep
-        for t in range(1, end):
-            ce_logits.append(lg); ce_targets.append(ids[t:t + 1])
-            nxt = lg.argmax(-1).detach()  # self-generated input
-            out = self.model(input_ids=nxt[None], past_key_values=cache, use_cache=True)
-            cache, lg = out.past_key_values, out.logits[0, -1:]
-        if not terminal:  # teacher-force the frame-boundary line_sep
-            ce_logits.append(lg); ce_targets.append(ids[end:end + 1])
-            out = self.model(inputs_embeds=self._emb(ids[end:end + 1][None]), past_key_values=cache, use_cache=True)
-            cache, lg = out.past_key_values, out.logits[0, -1:]
-        return cache, lg
-
     def _student(self, prompt_ids, trace_ids, spans):
         # Segments cover trace_ids in order; locals (trace_ids[i+1:j]) are dropped
         # and replaced by a latent block. kd=True marks a frame's <|action_sep|>.
@@ -120,12 +96,19 @@ class CodiModel(nn.Module):
             if kind == "latent":  # prev_logits predicted dropped locals; overwrite, no CE
                 cache, prev_logits = self._latent_block(cache)
                 continue
-            if kd and self.ss_p > 0 and ids.numel() - 1 <= self.ss_max_line and random.random() < self.ss_p:
-                cache, prev_logits = self._student_free(ids, cache, prev_logits, ce_logits,
-                                                        ce_targets, kd_vecs, terminal=(s == last))
-                continue
+            inp = ids
+            if kd and 0 < self.ss_p and random.random() < self.ss_p:
+                # scheduled sampling: replace the code (not action_sep / line_sep) with the student's own
+                # argmax via a no-grad pass on a detached cache clone; CE targets below stay GT.
+                end = ids.numel() if s == last else ids.numel() - 1
+                c = DynamicCache()
+                for i, ly in enumerate(cache.layers):
+                    c.update(ly.keys.detach(), ly.values.detach(), i)
+                with torch.no_grad():
+                    pred = self.model(inputs_embeds=self._emb(ids[None]), past_key_values=c, use_cache=True).logits[0].argmax(-1)
+                inp = ids.clone(); inp[1:end] = pred[:end - 1]
             ce_logits.append(prev_logits); ce_targets.append(ids[:1])
-            out = self.model(inputs_embeds=self._emb(ids[None]), past_key_values=cache,
+            out = self.model(inputs_embeds=self._emb(inp[None]), past_key_values=cache,
                              use_cache=True, output_hidden_states=kd)  # hiddens only for KD anchors
             cache, logits = out.past_key_values, out.logits[0]
             if ids.numel() > 1:
@@ -163,8 +146,7 @@ class CodiTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, **kw):
         core = model.module if hasattr(model, "module") else model
         if core.ss_prob:  # linear ramp 0 -> ss_prob over the first ss_ramp_frac of training
-            denom = max(1.0, core.ss_ramp_frac * (self.state.max_steps or 1))
-            core.ss_p = self._ss = core.ss_prob * min(1.0, self.state.global_step / denom)
+            core.ss_p = self._ss = core.ss_prob * min(1.0, self.state.global_step / max(1.0, core.ss_ramp_frac * self.state.max_steps))
         out = model(inputs["examples"])
         self._sub = {k: out[k].detach() for k in ("teacher_loss", "student_loss", "kd_loss")}
         return (out["loss"], out) if return_outputs else out["loss"]
@@ -211,7 +193,6 @@ def main():
     ap.add_argument("--single_anchor", action="store_true")  # KD at last frame only (vanilla CODI)
     ap.add_argument("--ss_prob", type=float, default=0.0)  # scheduled-sampling max prob (0 = off)
     ap.add_argument("--ss_ramp_frac", type=float, default=0.5)  # ramp ss_prob over this frac of steps
-    ap.add_argument("--ss_max_line", type=int, default=48)  # skip SS on code lines longer than this
     args = ap.parse_args()
 
     tok = AutoTokenizer.from_pretrained(args.model, use_fast=True)
@@ -222,7 +203,7 @@ def main():
     model = CodiModel(base, latent_start_id=ids["<|latent_start|>"], latent_end_id=ids["<|latent_end|>"],
                       latent_steps=args.latent_steps, a=args.alpha, b=args.beta, g=args.gamma,
                       kd_layers=args.kd_layers, single_anchor=args.single_anchor,
-                      ss_prob=args.ss_prob, ss_ramp_frac=args.ss_ramp_frac, ss_max_line=args.ss_max_line)
+                      ss_prob=args.ss_prob, ss_ramp_frac=args.ss_ramp_frac)
 
     ds = build_codi_dataset(tok, sources=args.sources, cache_dir=args.cache_dir,
                             n_samples=args.n_samples, max_seq_len=args.max_seq_len, max_frames=args.max_frames)
