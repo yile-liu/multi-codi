@@ -15,3 +15,21 @@ Found the latest cached dataset configuration 'default' at /cephyr/users/siruil/
   rank0 40/400  pass@1=0.4500
   rank0 60/400  pass@1=0.4500
   rank0 80/400  pass@1=0.4875
+  rank0 100/400  pass@1=0.4700
+  rank0 120/400  pass@1=0.4167
+  rank0 140/400  pass@1=0.4071
+  rank0 160/400  pass@1=0.4062
+  rank0 180/400  pass@1=0.4389
+  rank0 200/400  pass@1=0.4400
+  rank0 220/400  pass@1=0.4500
+  rank0 240/400  pass@1=0.4458
+  rank0 260/400  pass@1=0.4538
+  rank0 280/400  pass@1=0.4500
+  rank0 300/400  pass@1=0.4467
+  rank0 320/400  pass@1=0.4469
+  rank0 340/400  pass@1=0.4500
+  rank0 360/400  pass@1=0.4528
+  rank0 380/400  pass@1=0.4553
+  rank0 400/400  pass@1=0.4525
+
+CRUXEval-O latent pass@1=0.4387  valid_format=0.9600  (n=800, greedy)
