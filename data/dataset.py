@@ -112,6 +112,25 @@ def build_codi_dataset(
     return [ex for ex in out if ex is not None]
 
 
+def build_codi_single_dataset(
+    tokenizer, *, sources=("mbpp", "humaneval", "pyx"), n_samples: int = -1,
+    max_seq_len: int = 4096, max_frames: int = -1, cache_dir: str | None = None
+) -> list[dict]:
+    """Faithful single-block CODI: split each trace at its last ``<|return_sep|>`` into
+    ``{prompt_ids, reasoning_ids, answer_ids}`` (reasoning = whole trace, answer = final
+    RETURN frame). Derived from the multi-span examples; no separate cache needed."""
+    rsep = tokenizer.convert_tokens_to_ids("<|return_sep|>")
+    out = []
+    for e in build_codi_dataset(tokenizer, sources=sources, n_samples=n_samples,
+                                max_seq_len=max_seq_len, max_frames=max_frames, cache_dir=cache_dir):
+        t = e["trace_ids"]
+        idx = [i for i, x in enumerate(t) if x == rsep]
+        if not idx or idx[-1] == 0:
+            continue
+        out.append({"prompt_ids": e["prompt_ids"], "reasoning_ids": t[:idx[-1]], "answer_ids": t[idx[-1]:]})
+    return out
+
+
 def rows_for_sources(sources):
     """Merge {id,code,input,output} rows across sources (all rows; train vs test
     is split by dataset, e.g. cruxeval is held out for eval)."""
