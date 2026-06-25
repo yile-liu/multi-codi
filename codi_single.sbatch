@@ -27,4 +27,5 @@ torchrun --nproc_per_node=4 --master_port=$((20000 + RANDOM % 10000)) -m train.t
   --gamma "${GAMMA:-1.0}" \
   --lr 1e-5 \
   --batch_size "${BATCH:-1}" \
-  --grad_accum "${ACCUM:-4}"
+  --grad_accum "${ACCUM:-4}" \
+  --optim "${OPTIM:-paged_adamw_8bit}"

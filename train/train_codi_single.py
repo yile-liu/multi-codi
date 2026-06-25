@@ -127,6 +127,7 @@ def main():
     ap.add_argument("--grad_accum", type=int, default=4)
     ap.add_argument("--max_steps", type=int, default=-1)
     ap.add_argument("--save_steps", type=int, default=500)
+    ap.add_argument("--optim", default="paged_adamw_8bit")  # non-paged adamw_8bit for resume (paged prefetch crashes on resume)
     ap.add_argument("--alpha", type=float, default=1.0)
     ap.add_argument("--beta", type=float, default=1.0)
     ap.add_argument("--gamma", type=float, default=1.0)
@@ -156,7 +157,7 @@ def main():
         weight_decay=0.1,
         max_grad_norm=1.0,
         bf16=True,
-        optim="paged_adamw_8bit",
+        optim=args.optim,
         ddp_find_unused_parameters=False,
         logging_steps=5,
         save_strategy="steps",

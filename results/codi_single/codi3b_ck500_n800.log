@@ -1,0 +1,22 @@
+  rank0 20/400  pass@1=0.4500
+  rank0 40/400  pass@1=0.4250
+  rank0 60/400  pass@1=0.5000
+  rank0 80/400  pass@1=0.4750
+  rank0 100/400  pass@1=0.5000
+  rank0 120/400  pass@1=0.4750
+  rank0 140/400  pass@1=0.4500
+  rank0 160/400  pass@1=0.4437
+  rank0 180/400  pass@1=0.4444
+  rank0 200/400  pass@1=0.4350
+  rank0 220/400  pass@1=0.4545
+  rank0 240/400  pass@1=0.4583
+  rank0 260/400  pass@1=0.4692
+  rank0 280/400  pass@1=0.4536
+  rank0 300/400  pass@1=0.4467
+  rank0 320/400  pass@1=0.4469
+  rank0 340/400  pass@1=0.4559
+  rank0 360/400  pass@1=0.4583
+  rank0 380/400  pass@1=0.4632
+  rank0 400/400  pass@1=0.4575
+
+CRUXEval-O latent pass@1=0.4650  valid_format=0.9988  (n=800, greedy)

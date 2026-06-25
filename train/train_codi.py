@@ -28,7 +28,8 @@ from wb import wandb_init
 class CodiModel(nn.Module):
     def __init__(self, base, *, latent_start_id, latent_end_id, latent_steps,
                  a=1.0, b=1.0, g=1.0, kd_layers=None, single_anchor=False,
-                 ss_prob=0.0, ss_ramp_frac=0.5):
+                 ss_prob=0.0, ss_ramp_frac=0.5, teacher=None, kd_target="hidden", kd_temp=2.0,
+                 line_sep_id=None, recon_w=0.0):
         super().__init__()
         self.model = base
         h = base.config.hidden_size
@@ -40,6 +41,10 @@ class CodiModel(nn.Module):
         ref = base.get_input_embeddings().weight
         self.prj.to(device=ref.device, dtype=ref.dtype)
         self.latent_steps, self.a, self.b, self.g = latent_steps, a, b, g
+        self.teacher = [teacher] if teacher is not None else None  # list -> hidden from state_dict/DDP/optim
+        self.kd_target, self.kd_temp = kd_target, kd_temp  # hidden: smooth_l1 on kd_layers; logit: KL on lm_head
+        if kd_target == "logit" or (teacher is not None and kd_layers is None):
+            kd_layers = [-1]  # logit KD is defined on the last layer only; frozen default = key (last) hidden
         self.kd_layers = kd_layers  # None -> all layers
         self.single_anchor = single_anchor  # KD at last span only (vanilla-CODI ablation)
         # scheduled sampling: ss_p (ramped per step) of post-latent lines feed the student's own argmax
@@ -57,6 +62,15 @@ class CodiModel(nn.Module):
 
     def _teacher(self, full_ids, labels, kd_pos):
         pos = torch.tensor(kd_pos, device=full_ids.device)
+        if self.teacher is not None:  # frozen teacher: KD targets only, no teacher CE
+            tch, dev = self.teacher[0], full_ids.device
+            if next(tch.parameters()).device != dev:
+                tch.to(dev)
+            with torch.no_grad():
+                if self.kd_target == "logit":  # target = teacher's own next-token logits
+                    return None, [tch(input_ids=full_ids[None], use_cache=False).logits[0, pos]]
+                hs = tch(input_ids=full_ids[None], use_cache=False, output_hidden_states=True).hidden_states
+                return None, [l[0, pos] for l in self._kd(hs)]
         with torch.no_grad():  # KD targets are detached; take hiddens without a backward graph
             hs = self.model(input_ids=full_ids[None], use_cache=False, output_hidden_states=True).hidden_states
             kd = [l[0, pos] for l in self._kd(hs)]
@@ -120,6 +134,14 @@ class CodiModel(nn.Module):
         s_kd = [torch.stack([v[l] for v in kd_vecs]) for l in range(len(kd_vecs[0]))]
         return ce, s_kd
 
+    def _kd_loss(self, s_kd, t_kd):
+        s, t = torch.stack(s_kd), torch.stack(t_kd).detach()
+        if self.kd_target == "logit":  # s=student hidden, t=frozen-teacher logits; KL on distributions
+            T = self.kd_temp
+            sl, tl = self.head(s).flatten(0, -2) / T, t.flatten(0, -2) / T
+            return F.kl_div(F.log_softmax(sl, -1), F.softmax(tl, -1), reduction="batchmean") * T * T
+        return F.smooth_l1_loss(s, t)
+
     def forward(self, examples):
         dev = self.model.get_input_embeddings().weight.device
         tl = sl = kl = 0.0
@@ -128,17 +150,18 @@ class CodiModel(nn.Module):
             trace = torch.tensor(ex["trace_ids"], device=dev)
             spans = ex["spans"]
             full = torch.cat([prompt, trace])
-            labels = torch.cat([full.new_full((len(prompt),), IGNORE_INDEX), trace])
+            labels = None if self.teacher else torch.cat([full.new_full((len(prompt),), IGNORE_INDEX), trace])
             kd_pos = [len(prompt) + j for _, j in spans]
             t_ce, t_kd = self._teacher(full, labels, kd_pos)
             s_ce, s_kd = self._student(prompt, trace, spans)
             if self.single_anchor:  # keep only the last frame's anchor (per layer)
                 t_kd, s_kd = [t[-1:] for t in t_kd], [s[-1:] for s in s_kd]
-            kd = F.smooth_l1_loss(torch.stack(s_kd), torch.stack(t_kd).detach())
-            tl, sl, kl = tl + t_ce, sl + s_ce, kl + kd
+            tl = tl + (t_ce if t_ce is not None else 0.0)  # frozen teacher -> no teacher CE
+            sl, kl = sl + s_ce, kl + self._kd_loss(s_kd, t_kd)
         n = len(examples)
         loss = self.a * tl / n + self.b * sl / n + self.g * kl / n
-        return {"loss": loss, "teacher_loss": (tl / n).detach(),
+        t_log = (tl / n).detach() if torch.is_tensor(tl) else torch.tensor(0.0)  # 0 under frozen teacher
+        return {"loss": loss, "teacher_loss": t_log,
                 "student_loss": (sl / n).detach(), "kd_loss": (kl / n).detach()}
 
 
@@ -189,7 +212,10 @@ def main():
     ap.add_argument("--alpha", type=float, default=1.0)
     ap.add_argument("--beta", type=float, default=1.0)
     ap.add_argument("--gamma", type=float, default=1.0)
-    ap.add_argument("--kd_layers", nargs="+", type=int, default=None)  # default: all layers
+    ap.add_argument("--kd_layers", nargs="+", type=int, default=None)  # default: all layers (frozen -> last)
+    ap.add_argument("--frozen_teacher", default="")  # path to frozen SFT teacher; "" -> shared-weight (legacy)
+    ap.add_argument("--kd_target", default="hidden", choices=["hidden", "logit"])  # key-hidden align: smooth_l1 vs KL
+    ap.add_argument("--kd_temp", type=float, default=2.0)  # logit-KD temperature
     ap.add_argument("--single_anchor", action="store_true")  # KD at last frame only (vanilla CODI)
     ap.add_argument("--ss_prob", type=float, default=0.0)  # scheduled-sampling max prob (0 = off)
     ap.add_argument("--ss_ramp_frac", type=float, default=0.5)  # ramp ss_prob over this frac of steps
@@ -200,10 +226,16 @@ def main():
     ids = token_ids(tok)
     base = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.bfloat16)
     base.config.use_cache = True
+    teacher = None
+    if args.frozen_teacher:
+        teacher = AutoModelForCausalLM.from_pretrained(args.frozen_teacher, torch_dtype=torch.bfloat16)
+        teacher.config.use_cache = False
+        teacher.eval().requires_grad_(False)
     model = CodiModel(base, latent_start_id=ids["<|latent_start|>"], latent_end_id=ids["<|latent_end|>"],
                       latent_steps=args.latent_steps, a=args.alpha, b=args.beta, g=args.gamma,
                       kd_layers=args.kd_layers, single_anchor=args.single_anchor,
-                      ss_prob=args.ss_prob, ss_ramp_frac=args.ss_ramp_frac)
+                      ss_prob=args.ss_prob, ss_ramp_frac=args.ss_ramp_frac,
+                      teacher=teacher, kd_target=args.kd_target, kd_temp=args.kd_temp)
 
     ds = build_codi_dataset(tok, sources=args.sources, cache_dir=args.cache_dir,
                             n_samples=args.n_samples, max_seq_len=args.max_seq_len, max_frames=args.max_frames)
