@@ -1,0 +1,178 @@
+This job can be monitored from: https://job.c3se.chalmers.se/alvis/6778267
+W0626 05:47:22.822000 1585966 site-packages/torch/distributed/run.py:766] 
+W0626 05:47:22.822000 1585966 site-packages/torch/distributed/run.py:766] *****************************************
+W0626 05:47:22.822000 1585966 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0626 05:47:22.822000 1585966 site-packages/torch/distributed/run.py:766] *****************************************
+The tokenizer you are loading from 'model_weights/sft3b_lr1e5_bs32/checkpoint-3000' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+The tokenizer you are loading from 'model_weights/sft3b_lr1e5_bs32/checkpoint-3000' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+The tokenizer you are loading from 'model_weights/sft3b_lr1e5_bs32/checkpoint-3000' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+The tokenizer you are loading from 'model_weights/sft3b_lr1e5_bs32/checkpoint-3000' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.77s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.77s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.77s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.77s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.01s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.12s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.01s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.01s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.12s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.12s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.01s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.12s/it]
+55486 codi examples, latent_steps=1, recon_w=1.0
+55486 codi examples, latent_steps=1, recon_w=1.0
+55486 codi examples, latent_steps=1, recon_w=1.0
+55486 codi examples, latent_steps=1, recon_w=1.0
+wandb: Tracking run with wandb version 0.27.2
+wandb: W&B syncing is set to `offline` in this directory. Run `wandb online` or set WANDB_MODE=online to enable cloud syncing.
+wandb: Run data is saved locally in model_weights/codi_recon_3b_ls1_rw1.0/wandb/offline-run-20260626_054808-nw4sh7ix
+[RANK 0] Detected kernel version 4.18.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+  0%|          | 0/3000 [00:00<?, ?it/s]  0%|          | 1/3000 [01:07<56:13:59, 67.50s/it]  0%|          | 2/3000 [01:48<43:11:54, 51.87s/it]  0%|          | 3/3000 [02:28<38:51:25, 46.68s/it]  0%|          | 4/3000 [03:13<38:16:36, 45.99s/it]  0%|          | 5/3000 [03:54<36:33:27, 43.94s/it]                                                   {'loss': 3.0998, 'grad_norm': 180.0, 'learning_rate': 4.444444444444445e-07, 'teacher_loss': 0.002185096498578787, 'student_loss': 0.15610302984714508, 'kd_loss': 0.28858786821365356, 'recon_loss': 2.903163433074951, 'epoch': 0.0}
+  0%|          | 5/3000 [03:54<36:33:27, 43.94s/it]  0%|          | 6/3000 [04:39<36:54:19, 44.38s/it]  0%|          | 7/3000 [05:32<39:17:19, 47.26s/it]  0%|          | 8/3000 [06:18<38:55:13, 46.83s/it]  0%|          | 9/3000 [07:42<48:40:04, 58.58s/it]  0%|          | 10/3000 [08:48<50:25:05, 60.70s/it]                                                    {'loss': 2.8095, 'grad_norm': 96.5, 'learning_rate': 1.0000000000000002e-06, 'teacher_loss': 0.005208211485296488, 'student_loss': 0.20992016792297363, 'kd_loss': 0.27072301506996155, 'recon_loss': 1.514455795288086, 'epoch': 0.0}
+  0%|          | 10/3000 [08:49<50:25:05, 60.70s/it][rank3]: Traceback (most recent call last):
+[rank3]:   File "<frozen runpy>", line 198, in _run_module_as_main
+[rank3]:   File "<frozen runpy>", line 88, in _run_code
+[rank3]:   File "/cephyr/users/siruil/Alvis/distill_cwm/codi_trace/train/train_codi_recon.py", line 125, in <module>
+[rank3]:     main()
+[rank3]:   File "/cephyr/users/siruil/Alvis/distill_cwm/codi_trace/train/train_codi_recon.py", line 121, in main
+[rank3]:     run_training(model, tok, ds, args, "codi_recon")
+[rank3]:   File "/cephyr/users/siruil/Alvis/distill_cwm/codi_trace/train/codi_core.py", line 128, in run_training
+[rank3]:     trainer.train(resume_from_checkpoint=ckpt)
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/trainer.py", line 2325, in train
+[rank3]:     return inner_training_loop(
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/trainer.py", line 2674, in _inner_training_loop
+[rank3]:     tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+[rank3]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/trainer.py", line 4020, in training_step
+[rank3]:     loss = self.compute_loss(model, inputs, num_items_in_batch=num_items_in_batch)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/cephyr/users/siruil/Alvis/distill_cwm/codi_trace/train/codi_core.py", line 59, in compute_loss
+[rank3]:     out = model(inputs["examples"])
+[rank3]:           ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+[rank3]:     return self._call_impl(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+[rank3]:     return forward_call(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 1637, in forward
+[rank3]:     else self._run_ddp_forward(*inputs, **kwargs)
+[rank3]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 1464, in _run_ddp_forward
+[rank3]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+[rank3]:     return self._call_impl(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+[rank3]:     return forward_call(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/accelerate/utils/operations.py", line 943, in forward
+[rank3]:     return model_forward(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/accelerate/utils/operations.py", line 931, in __call__
+[rank3]:     return convert_to_fp32(self.model_forward(*args, **kwargs))
+[rank3]:                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/amp/autocast_mode.py", line 44, in decorate_autocast
+[rank3]:     return func(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/cephyr/users/siruil/Alvis/distill_cwm/codi_trace/train/train_codi_recon.py", line 95, in forward
+[rank3]:     s_ce, s_kd, s_rec = self._student(prompt, trace, spans)
+[rank3]:                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/cephyr/users/siruil/Alvis/distill_cwm/codi_trace/train/train_codi_recon.py", line 68, in _student
+[rank3]:     out = self.model(inputs_embeds=self._emb(ids[None]), past_key_values=cache,
+[rank3]:           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+[rank3]:     return self._call_impl(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+[rank3]:     return forward_call(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/utils/generic.py", line 918, in wrapper
+[rank3]:     output = func(self, *args, **kwargs)
+[rank3]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/models/qwen2/modeling_qwen2.py", line 449, in forward
+[rank3]:     outputs: BaseModelOutputWithPast = self.model(
+[rank3]:                                        ^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+[rank3]:     return self._call_impl(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+[rank3]:     return forward_call(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/utils/generic.py", line 1072, in wrapper
+[rank3]:     outputs = func(self, *args, **kwargs)
+[rank3]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/models/qwen2/modeling_qwen2.py", line 384, in forward
+[rank3]:     hidden_states = decoder_layer(
+[rank3]:                     ^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/modeling_layers.py", line 94, in __call__
+[rank3]:     return super().__call__(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+[rank3]:     return self._call_impl(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+[rank3]:     return forward_call(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/utils/generic.py", line 1031, in wrapped_forward
+[rank3]:     output = orig_forward(*args, **kwargs)
+[rank3]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/utils/deprecation.py", line 172, in wrapped_func
+[rank3]:     return func(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/models/qwen2/modeling_qwen2.py", line 234, in forward
+[rank3]:     hidden_states, _ = self.self_attn(
+[rank3]:                        ^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+[rank3]:     return self._call_impl(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+[rank3]:     return forward_call(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/utils/deprecation.py", line 172, in wrapped_func
+[rank3]:     return func(*args, **kwargs)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/models/qwen2/modeling_qwen2.py", line 169, in forward
+[rank3]:     attn_output, attn_weights = attention_interface(
+[rank3]:                                 ^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/integrations/sdpa_attention.py", line 68, in sdpa_attention_forward
+[rank3]:     value = repeat_kv(value, module.num_key_value_groups)
+[rank3]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/transformers/integrations/sdpa_attention.py", line 27, in repeat_kv
+[rank3]:     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 20.00 MiB. GPU 3 has a total capacity of 79.25 GiB of which 2.56 MiB is free. Including non-PyTorch memory, this process has 79.23 GiB memory in use. Of the allocated memory 77.57 GiB is allocated by PyTorch, and 581.92 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+W0626 05:57:27.247000 1585966 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1586032 closing signal SIGTERM
+W0626 05:57:27.252000 1585966 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1586033 closing signal SIGTERM
+W0626 05:57:27.253000 1585966 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1586034 closing signal SIGTERM
+E0626 05:57:32.125000 1585966 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 3 (pid: 1586035) of binary: /mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/bin/python
+Traceback (most recent call last):
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/run.py", line 892, in main
+    run(args)
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/run.py", line 883, in run
+    elastic_launch(
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 139, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mimer/NOBACKUP/groups/assert-kth/siruil/conda_envs/CWM/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 270, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+train.train_codi_recon FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-06-26_05:57:27
+  host      : alvis4-42.int.private
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 1586035)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

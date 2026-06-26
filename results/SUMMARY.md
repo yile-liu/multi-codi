@@ -27,13 +27,22 @@ Best checkpoint per config in **bold**. Latent diagnostics (why CODI plateaus) i
 | ss25 | 3b | **0.4775** | ck2000 | 500 .474 / 1k .476 / 1.5k .470 / **2k .477** / 2.5k .471 |
 | ss50 | 3b | **0.4750** | ck2000 | 500 .474 / 1k .470 / 1.5k .475 / **2k .475** / 2.5k .474 |
 
-## CODI — frozen SFT teacher (a0_b1_g1_ls1, last-layer KD) · *training to ck2500, partial*
+## CODI — frozen SFT teacher (a0_b1_g1_ls1, last-layer KD)
 | config | model | best pass@1 | ckpt | per-ckpt |
 |---|---|---|---|---|
-| frozen **logit** | 3b   | **0.4950** | ck1000 | 500 .478 / **1k .495** |
-| frozen hidden    | 3b   | **0.4888** | ck500  | **500 .489** / 1k .480 |
-| frozen logit     | 1.5b | **0.4412** | ck500  | **500 .441** / 1k .436 |
-| frozen hidden    | 1.5b | **0.4263** | ck1000 | 500 .423 / **1k .426** / 1.5k .422 |
+| frozen logit  | 3b   | **0.4950** | ck1000 | 500 .478 / **1k .495** / 1.5k .490 / 2k .480 / 2.5k .485 |
+| frozen hidden | 3b   | **0.4913** | ck2500 | 500 .489 / 1k .480 / 1.5k .490 / 2k .480 / **2.5k .491** |
+| frozen logit  | 1.5b | **0.4513** | ck2000 | 500 .441 / 1k .436 / 1.5k .444 / **2k .451** / 2.5k .449 |
+| frozen hidden | 1.5b | **0.4413** | ck2500 | 500 .423 / 1k .426 / 1.5k .422 / 2k .439 / **2.5k .441** |
+
+## CODI — recon (locals-reconstruction latent, shared-weight, ls1)
+| config | model | best pass@1 | ckpt | per-ckpt |
+|---|---|---|---|---|
+| recon rw1.0 | 3b   | **0.5300** | ck500  | **500 .530** |
+| recon rw1.0 | 1.5b | **0.5238** | ck1000 | 500 .494 / **1k .524** / 1.5k .504 / 2k .510 |
+| recon rw2.0 | 1.5b | **0.5175** | ck1500 | 500 .501 / 1k .514 / **1.5k .518** |
+
+*3b recon rw2.0 still training — no checkpoints saved yet; 3b rw1.0 only ck500 so far.*
 
 ## CODI — single-block (faithful arXiv 2502.21074)
 | config | model | best pass@1 | ckpt | per-ckpt |
@@ -43,7 +52,11 @@ Best checkpoint per config in **bold**. Latent diagnostics (why CODI plateaus) i
 
 ## Takeaways
 - **SFT >> CODI** on pass@1: best **SFT 3b = 0.576** vs best CODI 3b ≈ **0.49**. CODI 1.5b ~0.44–0.46.
-- **Frozen teacher does NOT lift latent pass@1**: 3b frozen logit .495 / hidden .489 ≈ co-trained .488.
+- **Recon latent is the first real lift**, at both sizes: 1.5b recon = **0.524** (vs ~0.44–0.46 for every
+  other CODI 1.5b, ≈96% of SFT 1.5b 0.546); 3b recon ck500 = **0.530**, already above all CODI 3b (~0.49).
+  Forcing the latent to reconstruct the dropped `$LOCALS` (H1/H2 capacity bottleneck) is what helps; rw1.0 and
+  rw2.0 land close (1.5b .524 / .518). At ~1/8 the generated tokens of explicit-trace SFT — see `DIAGNOSTICS.md` §G.
+- **Frozen teacher does NOT lift latent pass@1**: 3b frozen logit .495 / hidden .491 ≈ co-trained .488.
   Removing teacher degradation (H3) doesn't help ⇒ the bottleneck is **latent capacity/encoding (H1/H2)** —
   the latent can't reach even the (now stronger 0.576) teacher target. See `DIAGNOSTICS.md`.
 - **logit KD ≳ hidden KD** at both sizes (3b .495 vs .480; 1.5b .436 vs .426) — small but consistent.
