@@ -39,11 +39,16 @@ Mean fwd=gen 558/553 (1.5b/3b).*
 | frozen logit  | 1.5b | **0.4513** | ck2000 | 500 .441 / 1k .436 / 1.5k .444 / **2k .451** / 2.5k .449 |
 | frozen hidden | 1.5b | **0.4413** | ck2500 | 500 .423 / 1k .426 / 1.5k .422 / 2k .439 / **2.5k .441** |
 
-## CODI — recon (locals-reconstruction latent, shared-weight, ls1)
-*Pre-fix recon numbers (0.52–0.54) **withdrawn**: a fall-back-to-explicit-trace artifact — the buggy `latent_end`
-made the model re-emit `$LOCALS` as text. Under latent-mode eval (force `<|action_sep|>` after the latent block)
-recon collapses to vanilla-CODI range (1.5b rw1 ck1000: 0.524→**0.444**); non-recon control unchanged (frozen
-3b logit 0.495→0.495). Real recon results pending the off-path `_fix` runs.*
+## CODI — recon (locals-reconstruction latent, 1.5b, ls2, latent-mode eval, n=800)
+| config | best pass@1 | ckpt | per-ckpt |
+|---|---|---|---|
+| rw0.03_len192 | **0.4350** | ck600 | 300 .416 / **600 .435** / 900 — / 1200 — |
+| rw0.1_len192  | **0.4325** | ck900 | 300 .413 / 600 .431 / **900 .433** / 1200 — |
+
+*Recon decodes `$LOCALS` while attending to **all** preceding tokens (not just the latent), so low recon loss
+doesn't force the info into the latent. Pre-fix numbers (0.52–0.54) **withdrawn** — buggy `latent_end` let the model
+re-emit `$LOCALS` as text; under latent-mode eval recon sits in vanilla-CODI range (~.43). ck900/1200 + ck1500
+pending (jobs 6782474–76 + training finish).*
 
 ## CODI — single-block (faithful arXiv 2502.21074)
 | config | model | best pass@1 | ckpt | per-ckpt |
@@ -53,8 +58,8 @@ recon collapses to vanilla-CODI range (1.5b rw1 ck1000: 0.524→**0.444**); non-
 
 ## Takeaways
 - **SFT >> CODI** on pass@1: best **SFT 3b = 0.576** vs best CODI 3b ≈ **0.49**. CODI 1.5b ~0.44–0.46.
-- **Recon (pre-fix) gave no real gain**: its apparent lift was a fall-back-to-explicit artifact (see recon
-  section); under latent-mode eval it sits in vanilla-CODI range. Awaiting `_fix` runs.
+- **Recon gives no real gain** (~.43, vanilla-CODI range): recon decodes `$LOCALS` over the full prefix, so it
+  never forces info into the latent; pre-fix lift was a fall-back-to-explicit artifact.
 - **Frozen teacher does NOT lift latent pass@1**: 3b frozen logit .495 / hidden .491 ≈ co-trained .488.
   Removing teacher degradation (H3) doesn't help ⇒ the bottleneck is **latent capacity/encoding (H1/H2)** —
   the latent can't reach even the (now stronger 0.576) teacher target. See `DIAGNOSTICS.md`.

@@ -64,10 +64,14 @@ def _tokenize_trace(code, input_str, tokenizer, *, max_seq_len, max_frames):
             i += 1
     if not spans:
         return None
-    recon_targets = [
-        tokenizer.encode(json.dumps(f.full_locals or {}, sort_keys=True), add_special_tokens=False)
-        for f in frames if f.event == TraceEvent.LINE
-    ]
+    recon_targets, prev = [], {}  # per-frame delta of full_locals vs previous frame (frame 0 = full)
+    for f in frames:
+        if f.event != TraceEvent.LINE:
+            continue
+        full = f.full_locals or {}
+        delta = {k: v for k, v in full.items() if prev.get(k) != v}
+        recon_targets.append(tokenizer.encode(json.dumps(delta, sort_keys=True), add_special_tokens=False))
+        prev = full
     if len(recon_targets) != len(spans):
         return None
     return prompt_ids, trace_ids, spans, recon_targets

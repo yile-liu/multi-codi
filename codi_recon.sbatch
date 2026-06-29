@@ -16,7 +16,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 torchrun --nproc_per_node=4 --master_port=$((20000 + RANDOM % 10000)) -m train.train_codi_recon \
   --model "${MODEL:-model_weights/temp}" \
   --output_dir "${OUTPUT_DIR:-model_weights/codi-recon-temp}" \
-  --cache_dir "${CACHE_DIR:-data/cache/codi_train_full}" \
+  --cache_dir "${CACHE_DIR:-data/cache/codi_train_delta}" \
   --max_seq_len 3072 \
   --latent_steps "${LATENT_STEPS:-1}" \
   --epochs 5 \
@@ -26,7 +26,7 @@ torchrun --nproc_per_node=4 --master_port=$((20000 + RANDOM % 10000)) -m train.t
   --beta "${BETA:-1.0}" \
   --gamma "${GAMMA:-1.0}" \
   --recon_w "${RECON_W:-0.1}" \
-  --max_recon_len "${MAX_RECON_LEN:-128}" \
+  --max_recon_len "${MAX_RECON_LEN:-64}" \
   --debug_recon_print "${DEBUG_RECON_PRINT:-0}" \
   --lr 1e-5 \
   --batch_size "${BATCH:-1}" \

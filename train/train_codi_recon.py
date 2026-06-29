@@ -1,9 +1,6 @@
-"""Per-frame CODI with full-state locals reconstruction.
-
-Shared-weight teacher+student (co-trained, like codi_multi: teacher CE + all-layer
-hidden KD). A non-AR readout decodes each frame's full locals from the latent cache.
-L = a*Lt + b*Ls + g*Lkd + recon_w*Lrec.
-"""
+"""Per-frame CODI + delta-locals reconstruction. AR readout decodes each frame's
+delta-locals from the latent block (attention masked to the latent block only, so it
+can't copy the prompt). L = a*Lt + b*Ls + g*Lkd + recon_w*Lrec."""
 
 import argparse
 import os
@@ -28,9 +25,8 @@ class CodiRecon(nn.Module):
         ref = base.get_input_embeddings().weight
         self.prj = build_projector(base.config.hidden_size, ref.device, ref.dtype)
         self.latent_steps, self.a, self.b, self.g, self.recon_w = latent_steps, a, b, g, recon_w
+        self.max_recon_len = max_recon_len
         self.debug_recon_print, self._debug_seen = debug_recon_print, 0
-        self.recon_query = nn.Embedding(max_recon_len, base.config.hidden_size).to(
-            device=ref.device, dtype=ref.dtype)
         self.register_buffer("_ls_tok", torch.tensor([[latent_start_id]], dtype=torch.long), persistent=False)
         self.register_buffer("_le_tok", torch.tensor([[latent_end_id]], dtype=torch.long), persistent=False)
         self.body = base.model
@@ -45,14 +41,18 @@ class CodiRecon(nn.Module):
         return cache, logits
 
     def _recon_decode(self, emb, *kv):
-        # dead-end forward (cache discarded); kv passed explicitly so checkpoint recompute is stable.
+        # dead-end forward; mask attention to the last latent_steps+2 cached positions (the
+        # latent block) so recon reads locals from the latent, not the prompt source.
         c = DynamicCache()
         for k in range(len(kv) // 2):
             c.update(kv[2 * k], kv[2 * k + 1], k)
-        return self.model(inputs_embeds=emb, past_key_values=c, use_cache=True).logits[0]
+        past = kv[0].shape[-2]
+        mask = torch.zeros(1, past + emb.shape[1], dtype=torch.long, device=emb.device)
+        mask[:, past - (self.latent_steps + 2):] = 1
+        return self.model(inputs_embeds=emb, past_key_values=c, attention_mask=mask, use_cache=True).logits[0]
 
     def _student(self, prompt_ids, trace_ids, spans, recon_targets):
-        # Text follows the diff trace; recon_targets are full-state locals.
+        # Text follows the diff trace; recon_targets are per-frame delta-locals.
         segs, prev, kd = [], 0, False
         for k, (i, j) in enumerate(spans):
             segs.append(("text", trace_ids[prev:i + 1], kd))
@@ -69,24 +69,17 @@ class CodiRecon(nn.Module):
                 cache, prev_logits = self._latent_block(cache)
                 if self.recon_w and ids.numel():
                     kv = [t for ly in cache.layers for t in (ly.keys, ly.values)]
-                    n = min(ids.numel(), self.recon_query.num_embeddings)
+                    n = min(ids.numel(), self.max_recon_len)
                     trunc += int(ids.numel() > n); total += 1
-                    emb = self.recon_query.weight[:n][None]
-                    logits = checkpoint(self._recon_decode, emb, *kv, use_reentrant=False)
+                    tgt = ids[:n]
+                    emb = torch.cat([self._emb(self._le_tok), self._emb(tgt[None])], 1)  # AR: latent_end BOS + targets
+                    logits = checkpoint(self._recon_decode, emb, *kv, use_reentrant=False)[:-1]
                     if self._debug_seen < self.debug_recon_print and int(os.environ.get("RANK", 0)) == 0:
-                        pred = logits.argmax(-1)
-                        tok = getattr(self, "tok", None)
-                        text = ""
-                        if tok is not None:
-                            text = (f" target_text={tok.decode(ids[:min(n, 80)].tolist(), skip_special_tokens=False)!r}"
-                                    f" pred_text={tok.decode(pred[:min(n, 80)].tolist(), skip_special_tokens=False)!r}")
-                        print("[recon-debug] "
-                              f"frame={self._debug_seen} target_len={ids.numel()} used={n} "
-                              f"query={tuple(emb.shape)} logits={tuple(logits.shape)} "
-                              f"target_head={ids[:12].tolist()} pred_head={pred[:12].tolist()}{text}",
-                              flush=True)
+                        pred, tok = logits.argmax(-1), getattr(self, "tok", None)
+                        text = f" target={tok.decode(tgt[:80].tolist())!r} pred={tok.decode(pred[:80].tolist())!r}" if tok else ""
+                        print(f"[recon-debug] frame={self._debug_seen} len={ids.numel()} used={n}{text}", flush=True)
                         self._debug_seen += 1
-                    rec_logits.append(logits); rec_targets.append(ids[:n])
+                    rec_logits.append(logits); rec_targets.append(tgt)
                 continue
             ce_logits.append(prev_logits); ce_targets.append(ids[:1])
             out = self.model(inputs_embeds=self._emb(ids[None]), past_key_values=cache,

@@ -133,7 +133,7 @@ def main():
 
     stats = _recon_stats(examples)
     if stats:
-        print("recon full-locals lengths: "
+        print("recon delta-locals lengths: "
               f"mean={stats['recon_len_mean']:.1f} p90={stats['recon_len_p90']} "
               f"p99={stats['recon_len_p99']} max={stats['recon_len_max']}", flush=True)
     cfg = {**vars(args), "n_rows": n, "n_saved": len(examples), **stats}
